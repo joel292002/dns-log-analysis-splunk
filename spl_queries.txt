@@ -1,0 +1,115 @@
+DNS Log Analysis Using Splunk SIEM
+SPL Queries Reference
+
+--------------------------------------------------
+1. Verify Data Ingestion
+--------------------------------------------------
+
+Purpose:
+Confirm that DNS logs were successfully indexed in Splunk.
+
+Query:
+
+index=main sourcetype=dns_sample
+
+
+--------------------------------------------------
+2. Field Extraction from Raw Zeek DNS Logs
+--------------------------------------------------
+
+Purpose:
+Extract structured fields from raw DNS logs using regex parsing.
+
+Query:
+
+index=main sourcetype=dns_sample
+| rex field=_raw "^(?<ts>\S+)\s+(?<uid>\S+)\s+(?<id_orig_h>\S+)\s+(?<id_orig_p>\S+)\s+(?<id_resp_h>\S+)\s+(?<id_resp_p>\S+)\s+(?<proto>\S+)\s+(?<trans_id>\S+)\s+(?<query>\S+)\s+(?<qclass>\S+)\s+(?<qclass_name>\S+)\s+(?<qtype>\S+)\s+(?<qtype_name>\S+)\s+(?<rcode>\S+)\s+(?<rcode_name>\S+)"
+
+
+--------------------------------------------------
+3. View Extracted DNS Fields
+--------------------------------------------------
+
+Purpose:
+Display important DNS fields for inspection.
+
+Query:
+
+index=main sourcetype=dns_sample
+| rex field=_raw "^(?<ts>\S+)\s+(?<uid>\S+)\s+(?<id_orig_h>\S+)\s+(?<id_orig_p>\S+)\s+(?<id_resp_h>\S+)\s+(?<id_resp_p>\S+)\s+(?<proto>\S+)\s+(?<trans_id>\S+)\s+(?<query>\S+)\s+(?<qclass>\S+)\s+(?<qclass_name>\S+)\s+(?<qtype>\S+)\s+(?<qtype_name>\S+)\s+(?<rcode>\S+)\s+(?<rcode_name>\S+)"
+| table id_orig_h id_resp_h query qtype_name rcode_name proto id_resp_p
+
+
+--------------------------------------------------
+4. Identify Most Queried Domains
+--------------------------------------------------
+
+Purpose:
+Determine the most frequently requested domains.
+
+Query:
+
+index=main sourcetype=dns_sample
+| rex field=_raw "^(?<ts>\S+)\s+(?<uid>\S+)\s+(?<id_orig_h>\S+)\s+(?<id_orig_p>\S+)\s+(?<id_resp_h>\S+)\s+(?<id_resp_p>\S+)\s+(?<proto>\S+)\s+(?<trans_id>\S+)\s+(?<query>\S+)\s+(?<qclass>\S+)\s+(?<qclass_name>\S+)\s+(?<qtype>\S+)\s+(?<qtype_name>\S+)\s+(?<rcode>\S+)\s+(?<rcode_name>\S+)"
+| stats count by query
+| sort -count
+
+
+--------------------------------------------------
+5. Detect NXDOMAIN Anomalies
+--------------------------------------------------
+
+Purpose:
+Identify DNS resolution failures that may indicate suspicious activity.
+
+Query:
+
+index=main sourcetype=dns_sample
+| rex field=_raw "^(?<ts>\S+)\s+(?<uid>\S+)\s+(?<id_orig_h>\S+)\s+(?<id_orig_p>\S+)\s+(?<id_resp_h>\S+)\s+(?<id_resp_p>\S+)\s+(?<proto>\S+)\s+(?<trans_id>\S+)\s+(?<query>\S+)\s+(?<qclass>\S+)\s+(?<qclass_name>\S+)\s+(?<qtype>\S+)\s+(?<qtype_name>\S+)\s+(?<rcode>\S+)\s+(?<rcode_name>\S+)"
+| search rcode_name=NXDOMAIN
+| stats count by id_orig_h, query
+| sort -count
+
+
+--------------------------------------------------
+6. Identify Top DNS Sources (Top Talkers)
+--------------------------------------------------
+
+Purpose:
+Find hosts generating the highest DNS traffic.
+
+Query:
+
+index=main sourcetype=dns_sample
+| rex field=_raw "^(?<ts>\S+)\s+(?<uid>\S+)\s+(?<id_orig_h>\S+)\s+(?<id_orig_p>\S+)\s+(?<id_resp_h>\S+)\s+(?<id_resp_p>\S+)\s+(?<proto>\S+)\s+(?<trans_id>\S+)\s+(?<query>\S+)\s+(?<qclass>\S+)\s+(?<qclass_name>\S+)\s+(?<qtype>\S+)\s+(?<qtype_name>\S+)\s+(?<rcode>\S+)\s+(?<rcode_name>\S+)"
+| stats count by id_orig_h
+| sort -count
+
+
+--------------------------------------------------
+7. Investigate Suspicious Domains (High-Risk TLDs)
+--------------------------------------------------
+
+Purpose:
+Identify DNS queries to potentially suspicious domain types.
+
+Query:
+
+index=main sourcetype=dns_sample
+| rex field=_raw "^(?<ts>\S+)\s+(?<uid>\S+)\s+(?<id_orig_h>\S+)\s+(?<id_orig_p>\S+)\s+(?<id_resp_h>\S+)\s+(?<id_resp_p>\S+)\s+(?<proto>\S+)\s+(?<trans_id>\S+)\s+(?<query>\S+)\s+(?<qclass>\S+)\s+(?<qclass_name>\S+)\s+(?<qtype>\S+)\s+(?<qtype_name>\S+)\s+(?<rcode>\S+)\s+(?<rcode_name>\S+)"
+| search query="*.xyz" OR query="*.ru" OR query="*.top"
+| stats count by query id_orig_h
+
+
+--------------------------------------------------
+8. Visualize DNS Activity Over Time
+--------------------------------------------------
+
+Purpose:
+Monitor DNS traffic trends and detect spikes.
+
+Query:
+
+index=main sourcetype=dns_sample
+| rex field=_raw "^(?<ts>\S+)\s+(?<uid>\S+)\s+(?<id_orig_h>\S+)\s+(?<id_orig_p>\S+)\s+(?<id_resp_h>\S+)\s+(?<id_resp_p>\S+)\s+(?<proto>\S+)\s+(?<trans_id>\S+)\s+(?<query>\S+)\s+(?<qclass>\S+)\s+(?<qclass_name>\S+)\s+(?<qtype>\S+)\s+(?<qtype_name>\S+)\s+(?<rcode>\S+)\s+(?<rcode_name>\S+)"
+| timechart count
